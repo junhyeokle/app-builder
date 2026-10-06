@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# OMC operational state (not project content)
+.omc/
+
+# Node
+node_modules/
+
+# Expo
+.expo/
+dist/
+expo-env.d.ts
+
+# env files (never commit secrets)
+.env
+.env*.local
+
+# generated app projects are disposable output, regenerable from
+# generator/specs/*.json via `node generate.js <slug>` - don't commit them
+generator/generated-projects/
+
+# in-progress analysis session state
+generator/.active-analysis-session.json

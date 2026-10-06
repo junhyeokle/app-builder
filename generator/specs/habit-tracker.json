@@ -1,0 +1,40 @@
+{
+  "appName": "Habit Tracker",
+  "slug": "habit-tracker",
+  "resource": {
+    "table": "habits",
+    "tsTypeName": "Habit",
+    "libFileName": "habits",
+    "fields": [
+      {
+        "name": "name",
+        "type": "text",
+        "tsType": "string",
+        "required": true
+      },
+      {
+        "name": "is_done",
+        "type": "boolean",
+        "tsType": "boolean",
+        "required": true,
+        "default": false
+      },
+      {
+        "name": "created_at",
+        "type": "date",
+        "tsType": "string",
+        "required": true
+      }
+    ],
+    "orderBy": [
+      {
+        "field": "created_at",
+        "ascending": false
+      }
+    ]
+  },
+  "screen": {
+    "title": "Daily Habits",
+    "description": "A single list screen showing habits to track. Supports: add habit by name, tap to toggle completion status, and delete habit. Completed habits will remain visible in the list."
+  }
+}

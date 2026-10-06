@@ -1,0 +1,5 @@
+node_modules/
+.env
+generated-projects/*/node_modules/
+generated-projects/*/.expo/
+generated-projects/*/dist/

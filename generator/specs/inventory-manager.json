@@ -1,0 +1,34 @@
+{
+  "appName": "쇼핑몰 재고 관리",
+  "slug": "inventory-manager",
+  "resource": {
+    "table": "inventory_items",
+    "tsTypeName": "InventoryItem",
+    "libFileName": "inventory-items",
+    "fields": [
+      {
+        "name": "name",
+        "type": "text",
+        "tsType": "string",
+        "required": true
+      },
+      {
+        "name": "quantity",
+        "type": "integer",
+        "tsType": "number",
+        "required": true,
+        "default": 0
+      }
+    ],
+    "orderBy": [
+      {
+        "field": "name",
+        "ascending": true
+      }
+    ]
+  },
+  "screen": {
+    "title": "재고 목록",
+    "description": "상품명과 수량을 관리하는 목록 화면입니다. 지원 기능: 상품 추가, 수량 수정, 항목 삭제."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "appName": "Shopping List",
+  "slug": "shopping-list",
+  "resource": {
+    "table": "shopping_items",
+    "tsTypeName": "ShoppingItem",
+    "libFileName": "shopping-items",
+    "fields": [
+      { "name": "name", "type": "text", "tsType": "string", "required": true },
+      { "name": "quantity", "type": "integer", "tsType": "number", "required": true, "default": 1 },
+      { "name": "is_purchased", "type": "boolean", "tsType": "boolean", "required": true, "default": false },
+      { "name": "category", "type": "text", "tsType": "string | null", "required": false }
+    ],
+    "orderBy": [
+      { "field": "is_purchased", "ascending": true },
+      { "field": "created_at", "ascending": false }
+    ]
+  },
+  "screen": {
+    "title": "Shopping List",
+    "description": "A single list screen showing shopping items grouped visually by purchased/not purchased. Supports: add item by name (quantity defaults to 1), tap to toggle purchased, delete item. Keep it as close as possible in structure/style to the existing Todo screen (same layout conventions, same themed components, same add-row + list pattern)."
+  }
+}
