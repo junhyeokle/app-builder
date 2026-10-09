@@ -33,13 +33,7 @@ function runJson(cmd, cwd) {
   return JSON.parse(out.toString());
 }
 
-async function main() {
-  const slug = process.argv[2];
-  if (!slug) {
-    console.error('Usage: node build-apk.js <spec-slug>  (e.g. shopping-list)');
-    process.exit(1);
-  }
-
+async function buildApk(slug) {
   const projectsBase = process.env.GENERATED_PROJECTS_DIR || path.join(ROOT, '..', 'app-builder-generated-projects');
   const projectDir = path.join(projectsBase, slug);
   if (!fs.existsSync(projectDir)) {
@@ -107,14 +101,25 @@ async function main() {
   }
 
   if (status !== 'FINISHED') {
-    console.error(`BUILD ${status}. See https://expo.dev/accounts/${process.env.EAS_ACCOUNT}/projects/${slug}/builds/${buildId}`);
-    process.exit(1);
+    throw new Error(
+      `BUILD ${status}. See https://expo.dev/accounts/${process.env.EAS_ACCOUNT}/projects/${slug}/builds/${buildId}`
+    );
   }
 
   console.log(`\nSUCCESS. APK: ${artifactUrl}`);
+  return artifactUrl;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+module.exports = { buildApk };
+
+if (require.main === module) {
+  const slug = process.argv[2];
+  if (!slug) {
+    console.error('Usage: node build-apk.js <spec-slug>  (e.g. shopping-list)');
+    process.exit(1);
+  }
+  buildApk(slug).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

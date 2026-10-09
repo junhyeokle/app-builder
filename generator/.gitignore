@@ -1,5 +1,7 @@
 node_modules/
 .env
+.sessions/
+.active-analysis-session.json
 generated-projects/*/node_modules/
 generated-projects/*/.expo/
 generated-projects/*/dist/

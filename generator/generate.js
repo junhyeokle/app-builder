@@ -82,6 +82,7 @@ Requirements:
 - The data-layer file must export a TypeScript type named "${spec.resource.tsTypeName}" and list/create/update/delete functions analogous to listTodos/createTodo/toggleTodo/deleteTodo, but for table "${spec.resource.table}" with fields: ${spec.resource.fields.map((f) => `${f.name} (${f.tsType})`).join(', ')}.
 - The screen file implements: ${spec.screen.description}
 - The SQL file creates table "${spec.resource.table}" with the same RLS pattern (user_id ownership, 4 policies: select/insert/update/delete).
+- CRITICAL: the ONLY valid values for ThemedText's "type" prop are exactly: default, title, small, smallBold, subtitle, link, linkPrimary, code. This is NOT the stock Expo template's ThemedText (which has different type names like "defaultSemiBold") - it is a custom component local to this project. Using any type value other than the ones listed above will fail TypeScript compilation. When in doubt, omit the "type" prop entirely rather than guessing one.
 - Use the exact same import alias style ("@/lib/...", "@/components/...", "@/contexts/auth-context", "@/constants/theme").
 
 Respond with EXACTLY this format, nothing else (no markdown fences, no commentary):
@@ -209,6 +210,17 @@ async function main() {
 
   console.log('[5/5] Running build validation (expo export -p web)...');
   try {
+    // The platform serves this static export under /preview/<slug>/, not
+    // site root, so asset/route URLs must be prefixed accordingly or every
+    // request 404s and the app never loads (blank iframe) - see MILESTONES.md.
+    // This is controlled by app.json's expo.experiments.baseUrl, NOT an env
+    // var (EXPO_BASE_URL only affects expo-router's client-side route
+    // matching, not the asset URLs Metro writes into index.html).
+    const appJsonPath = path.join(destDir, 'app.json');
+    const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
+    appJson.expo.experiments = { ...appJson.expo.experiments, baseUrl: `/preview/${spec.slug}` };
+    fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2));
+
     execSync('npx expo export -p web', { cwd: destDir, stdio: 'inherit' });
   } catch {
     console.error('BUILD VALIDATION FAILED: web export errors above.');

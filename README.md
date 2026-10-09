@@ -75,8 +75,8 @@ User prompt
 APK building is a deliberately separate, explicit step (not bundled into every generation) so EAS Build minutes/quota aren't spent until the user is actually satisfied with the preview.
 
 ### Storage & Execution
-- Each generated project is stored as its own Git repository (also the basis for the snapshot/rollback safety net planned for the modification feature in a later version).
-- Preview runs in an ephemeral, per-session container running the Expo dev server; the container is torn down after the session ends. No persistent per-project infrastructure is kept running for V0.1.
+- Each generated project lives outside the platform's own repo (user content, not platform source — see MILESTONES.md M5 5-1), under a configurable `GENERATED_PROJECTS_DIR`.
+- Preview is served as a static snapshot: `expo export -p web` already runs as part of build validation, and the platform serves that `dist/` output directly (`platform/app/preview/[slug]/...`). No live dev server/container per session is run for V0.1 — since there's no post-generation modification yet, a one-time static build is sufficient. (Originally planned as a live per-session container; turned out unnecessary — see MILESTONES.md M5 5-3.)
 - Real-device verification (Expo Go + QR) is available as a secondary/optional check, not the default preview path.
 
 ### Known Risk Areas

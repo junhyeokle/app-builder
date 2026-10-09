@@ -2,12 +2,18 @@
 // The output spec has the exact same shape as generator/specs/*.json, so it
 // feeds directly into M2's generate.js (chained automatically at the end).
 //
-// Usage: run this command again with your next message each time (the
-// conversation is persisted to .active-analysis-session.json between runs,
-// since this isn't driven by a long-lived interactive terminal):
-//   node analyze.js "습관 트래커 앱 만들어줘"
-//   node analyze.js "완료된 것도 계속 보여줘"
-//   ...
+// Usage (CLI, one project at a time):
+//   node analyze.js <projectId> "<message>"
+// Run it again with the next message each time (conversation state is
+// persisted to .sessions/<projectId>.json between runs, since this isn't
+// driven by a long-lived interactive terminal). projectId is also forced to
+// become the final spec's slug, so a platform UI can keep a stable URL/id
+// for the project across the whole conversation even though the AI only
+// decides the app's *name* at the end.
+//
+// Add --json as the last arg to get a single machine-readable result line
+// (prefixed "RESULT_JSON:") instead of the human-readable console output -
+// this is what the Next.js platform's API route uses.
 
 require('dotenv').config();
 const fs = require('fs');
@@ -16,7 +22,7 @@ const { execSync } = require('child_process');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const SPECS_DIR = path.join(__dirname, 'specs');
-const SESSION_FILE = path.join(__dirname, '.active-analysis-session.json');
+const SESSIONS_DIR = path.join(__dirname, '.sessions');
 
 const SYSTEM_PROMPT = `You are the requirement-analysis step of a no-code mobile app builder. The platform can currently only build one shape of app: a single-resource list screen behind login (think: todo list, shopping list, habit tracker, reading list, simple booking list, etc.) — one Supabase table owned by the signed-in user, shown as a list with add / toggle-done / delete.
 
@@ -101,17 +107,21 @@ async function sendWithRetry(chat, message) {
 }
 
 async function main() {
-  const userMessage = process.argv.slice(2).join(' ');
-  if (!userMessage) {
-    console.error('Usage: node analyze.js <자연어로 앱 설명, 또는 이전 질문에 대한 답변>');
+  const asJson = process.argv.at(-1) === '--json';
+  const args = asJson ? process.argv.slice(2, -1) : process.argv.slice(2);
+  const [projectId, userMessage] = args;
+
+  if (!projectId || !userMessage) {
+    console.error('Usage: node analyze.js <projectId> "<message>" [--json]');
     process.exit(1);
   }
 
-  const savedHistory = fs.existsSync(SESSION_FILE) ? JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8')) : [];
-  if (savedHistory.length === 0) {
-    console.log(`\n[새 대화 시작]\n사용자: ${userMessage}\n`);
-  } else {
-    console.log(`\n[이어서 답변]: ${userMessage}\n`);
+  fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+  const sessionFile = path.join(SESSIONS_DIR, `${projectId}.json`);
+  const savedHistory = fs.existsSync(sessionFile) ? JSON.parse(fs.readFileSync(sessionFile, 'utf8')) : [];
+
+  if (!asJson) {
+    console.log(savedHistory.length === 0 ? `\n[새 대화 시작]\n사용자: ${userMessage}\n` : `\n[이어서 답변]: ${userMessage}\n`);
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -123,27 +133,48 @@ async function main() {
   const updatedHistory = await chat.getHistory();
 
   if (parsed.type === 'question') {
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(updatedHistory, null, 2));
-    console.log(`AI: ${parsed.question}`);
-    console.log(`\n이 질문에 답하려면 다음과 같이 다시 실행해주세요:`);
-    console.log(`  node analyze.js "<답변>"`);
+    fs.writeFileSync(sessionFile, JSON.stringify(updatedHistory, null, 2));
+    if (asJson) {
+      console.log('RESULT_JSON:' + JSON.stringify({ type: 'question', question: parsed.question }));
+    } else {
+      console.log(`AI: ${parsed.question}`);
+      console.log(`\n이 질문에 답하려면 다음과 같이 다시 실행해주세요:`);
+      console.log(`  node analyze.js ${projectId} "<답변>"`);
+    }
     return;
   }
 
-  // type === 'spec' -> conversation finished, clear session
-  if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  // type === 'spec' -> conversation finished, clear session.
+  // Force the spec's slug to the caller's stable projectId, so the project's
+  // URL/identity doesn't depend on what the AI happened to name the app.
+  parsed.spec.slug = projectId;
+  if (fs.existsSync(sessionFile)) fs.unlinkSync(sessionFile);
 
-  if (parsed.note) console.log(`AI: ${parsed.note}\n`);
-  console.log('--- 최종 스펙 ---');
-  console.log(JSON.stringify(parsed.spec, null, 2));
+  if (!asJson) {
+    if (parsed.note) console.log(`AI: ${parsed.note}\n`);
+    console.log('--- 최종 스펙 ---');
+    console.log(JSON.stringify(parsed.spec, null, 2));
+  }
 
   fs.mkdirSync(SPECS_DIR, { recursive: true });
   const specPath = path.join(SPECS_DIR, `${parsed.spec.slug}.json`);
   fs.writeFileSync(specPath, JSON.stringify(parsed.spec, null, 2));
-  console.log(`\n스펙 저장: generator/specs/${parsed.spec.slug}.json`);
+  if (!asJson) console.log(`\n스펙 저장: generator/specs/${parsed.spec.slug}.json`);
 
-  console.log(`\n이제 M2 generate.js를 자동으로 실행합니다...\n`);
-  execSync(`node generate.js ${parsed.spec.slug}`, { cwd: __dirname, stdio: 'inherit' });
+  if (!asJson) console.log(`\n이제 M2 generate.js를 자동으로 실행합니다...\n`);
+  let generateOk = true;
+  try {
+    execSync(`node generate.js ${parsed.spec.slug}`, { cwd: __dirname, stdio: asJson ? 'pipe' : 'inherit' });
+  } catch {
+    generateOk = false;
+  }
+
+  if (asJson) {
+    console.log(
+      'RESULT_JSON:' +
+        JSON.stringify({ type: 'spec', spec: parsed.spec, note: parsed.note, generateOk })
+    );
+  }
 }
 
 main().catch((err) => {
