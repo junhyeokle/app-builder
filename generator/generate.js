@@ -11,7 +11,11 @@ const { Client } = require('pg');
 
 const ROOT = path.resolve(__dirname, '..');
 const SCAFFOLD_DIR = path.join(ROOT, 'app-template');
-const OUT_BASE = path.join(__dirname, 'generated-projects');
+// Generated projects are user content, not platform source - they must live
+// outside this repo entirely (see MILESTONES.md M5 5-1: EAS Build silently
+// drops anything inside a path excluded by .gitignore when the project sits
+// inside a git repo, which generator/generated-projects/ was).
+const OUT_BASE = process.env.GENERATED_PROJECTS_DIR || path.join(ROOT, '..', 'app-builder-generated-projects');
 
 // Files that are app-specific in the scaffold and must NOT be copied verbatim;
 // the AI generates replacements for these slots.

@@ -7,8 +7,10 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function LoginScreen() {
+  const theme = useTheme();
   const { session, isLoading, signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,16 +41,18 @@ export default function LoginScreen() {
         </ThemedText>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
           placeholder="Email"
+          placeholderTextColor={theme.textSecondary}
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
           onChangeText={setEmail}
         />
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
           placeholder="Password"
+          placeholderTextColor={theme.textSecondary}
           secureTextEntry
           value={password}
           onChangeText={setPassword}

@@ -58,6 +58,9 @@ So this SAAS help them to build App without any of this knowledge or skills.
 - Frontend: React Native via Expo
 - Backend/DB: Supabase (Postgres, Auth, Row Level Security for per-project data isolation)
 
+### Platform Web App Stack
+- The platform itself (login, project creation, chat, preview, download) is built with **Next.js** — chosen so the existing Node-based generator scripts can be absorbed directly as backend API routes, and the preview/chat UI stays in the same React ecosystem.
+
 ### Pipeline
 ```
 User prompt
@@ -66,8 +69,10 @@ User prompt
   -> Template Generator (AI fills app-specific slots into the fixed Expo+Supabase scaffold)
   -> Build Validation (project must build successfully)
   -> In-browser Preview (Expo Web / react-native-web, rendered in the platform)
-  -> APK Build (EAS Build) -> user downloads APK
+  -> [user reviews preview; APK build is NOT automatic here]
+  -> User clicks "Download APK" -> EAS Build triggered on demand -> user downloads APK
 ```
+APK building is a deliberately separate, explicit step (not bundled into every generation) so EAS Build minutes/quota aren't spent until the user is actually satisfied with the preview.
 
 ### Storage & Execution
 - Each generated project is stored as its own Git repository (also the basis for the snapshot/rollback safety net planned for the modification feature in a later version).

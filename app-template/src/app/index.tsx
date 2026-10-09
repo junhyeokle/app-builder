@@ -7,9 +7,11 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useTheme } from '@/hooks/use-theme';
 import { createTodo, deleteTodo, listTodos, toggleTodo, type Todo } from '@/lib/todos';
 
 export default function TodoListScreen() {
+  const theme = useTheme();
   const { session, isLoading, signOut } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTitle, setNewTitle] = useState('');
@@ -64,8 +66,9 @@ export default function TodoListScreen() {
 
         <ThemedView style={styles.addRow}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: theme.text, backgroundColor: theme.backgroundElement }]}
             placeholder="Add a todo..."
+            placeholderTextColor={theme.textSecondary}
             value={newTitle}
             onChangeText={setNewTitle}
             onSubmitEditing={handleAdd}

@@ -48,6 +48,19 @@ Session-based container orchestration for concurrent users/projects. Wire a mini
 
 **Goal:** the full V0.1 user journey (README Section 25 definition of success, generation-only scope) works as a usable product, not just a backend pipeline.
 
+**Platform web app stack decision:** Next.js (chosen 2026-10-09) — the existing Node-based generator scripts can be absorbed as backend API routes directly, and chat/preview UI stays in the same React ecosystem.
+
+**UX decision: APK build is a separate, explicit step, not bundled into generation.** Flow is: describe app -> questions -> generate -> in-platform preview -> user reviews (V0.1 has no modification/fix-up loop yet, so "not satisfied" currently means starting over, a known limitation already tracked under V0.2) -> only once satisfied, user clicks "Download APK" -> that triggers the build. Rationale: EAS Build has limited free quota and takes several minutes; building on every generation attempt would waste both for no benefit, since nothing is shown to the user until they explicitly ask for it.
+
+### 5-1. Automate APK building for any generated app — DONE (2026-10-10)
+Manually proved in this session that `app-template` can be built to a real, installable APK via EAS Build (using a dedicated Expo "robot" service-account token, `EXPO_TOKEN` — the same "platform owns one shared account, end users never see it" pattern used for Supabase). Found and fixed one real bug while doing this: `app-template`'s `TextInput`s had no explicit `color`/`backgroundColor`, so in dark mode (background black, default text color black) typed text was invisible — fixed by theming them via `useTheme()`, same as `ThemedText`/`ThemedView` already did. Fixed in the scaffold, so every future generation inherits it automatically.
+
+`generator/build-apk.js <slug>` then automates the whole thing for any already-generated project: sets a per-app Android package name (`com.appbuilder.<slug>`), copies `eas.json`, links an EAS project (`eas init`), pushes the app's Supabase URL/key into EAS environment variables, triggers the build, and polls until an APK URL comes back. Verified end-to-end on the Shopping List app (freshly regenerated, picking up the dark-mode fix too): fully automated run produced a working APK, installed and confirmed functional on a physical device.
+
+**Two real infrastructure bugs found and fixed along the way (not just "config"):**
+1. **Generated projects can't live inside the platform's own git repo.** `generator/generated-projects/` had been `.gitignore`'d (since generated output is disposable/regenerable — see M4 notes). EAS Build detects it's inside a git repo and uses `.gitignore` to decide what to upload, so it silently excluded the entire generated project, causing `package.json does not exist` on the remote builder. Tried `.easignore` (which is supposed to override `.gitignore` for EAS specifically) — did not fix it. **Real fix:** moved generated projects fully outside the repo, to a sibling directory (`app-builder-generated-projects/`, path configurable via `GENERATED_PROJECTS_DIR`). This is also the architecturally correct call independent of the bug: user-generated content shouldn't live inside the platform's own source tree at all.
+2. **EAS Build requires every project to be its own git repository** (it uses git to compute a build fingerprint) — unrelated to the platform repo. `build-apk.js` now runs a throwaway local `git init` + commit inside each generated project before calling `eas build`.
+
 ---
 
 ## Deferred (not part of V0.1)
