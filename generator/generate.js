@@ -20,7 +20,8 @@ const OUT_BASE = process.env.GENERATED_PROJECTS_DIR || path.join(ROOT, '..', 'ap
 // Files that are app-specific in the scaffold and must NOT be copied verbatim;
 // the AI generates replacements for these slots.
 const SLOT_FILES_TO_SKIP = new Set([
-  'src/lib/todos.ts',
+  'src/types/todos.ts',
+  'src/services/todos.ts',
   'src/app/index.tsx',
   'supabase/schema.sql',
 ]);
@@ -64,12 +65,19 @@ function copyScaffold(destDir, slug) {
   fs.writeFileSync(path.join(destDir, '.env'), `${envWithoutSlug}\nEXPO_PUBLIC_PROJECT_SLUG=${slug}\n`);
 }
 
-function buildPrompt(spec, referenceLib, referenceScreen, referenceSql) {
-  return `You are generating three files for a React Native (Expo Router) + Supabase app, by following an EXISTING established pattern exactly (same imports, same themed components, same code style, same auth/data conventions). Do not introduce new UI libraries or change the project structure.
+function buildPrompt(spec, referenceTypes, referenceServices, referenceScreen, referenceSql) {
+  return `You are generating four files for a React Native (Expo Router) + Supabase app, by following an EXISTING established pattern exactly (same imports, same themed components, same code style, same auth/data conventions, same file organization). Do not introduce new UI libraries or change the project structure.
 
-Here is the EXISTING reference data-layer file (src/lib/todos.ts) for a Todo resource - follow this exact pattern for the new resource:
----REFERENCE src/lib/todos.ts---
-${referenceLib}
+This project separates concerns into src/types/ (plain TypeScript type definitions, no logic) and src/services/ (Supabase calls, imports its type from the matching src/types/ file). Keep that separation in your output - do not merge them back into one file.
+
+Here is the EXISTING reference type file (src/types/todos.ts) for a Todo resource - follow this exact pattern for the new resource's type:
+---REFERENCE src/types/todos.ts---
+${referenceTypes}
+---END REFERENCE---
+
+Here is the EXISTING reference service file (src/services/todos.ts) for the Todo resource - follow this exact pattern for the new resource's data functions:
+---REFERENCE src/services/todos.ts---
+${referenceServices}
 ---END REFERENCE---
 
 Here is the EXISTING reference screen file (src/app/index.tsx) for the Todo list - follow this exact layout/style pattern for the new screen:
@@ -82,19 +90,22 @@ Here is the EXISTING reference SQL schema (supabase/schema.sql) for the todos ta
 ${referenceSql}
 ---END REFERENCE---
 
-Now generate the equivalent three files for this new app spec:
+Now generate the equivalent four files for this new app spec:
 ${JSON.stringify(spec, null, 2)}
 
 Requirements:
-- The data-layer file must export a TypeScript type named "${spec.resource.tsTypeName}" and list/create/update/delete functions analogous to listTodos/createTodo/toggleTodo/deleteTodo, but for table "${spec.resource.table}" with fields: ${spec.resource.fields.map((f) => `${f.name} (${f.tsType})`).join(', ')}.
+- The type file must export ONLY a TypeScript type named "${spec.resource.tsTypeName}" with fields: ${spec.resource.fields.map((f) => `${f.name} (${f.tsType})`).join(', ')}. No functions, no imports besides what the type itself needs.
+- The service file must import "${spec.resource.tsTypeName}" from the type file (relative alias "@/types/${spec.resource.libFileName}") and export list/create/update/delete functions analogous to listTodos/createTodo/toggleTodo/deleteTodo, but for table "${spec.resource.table}".
 - The screen file implements: ${spec.screen.description}
 - The SQL file creates table "${spec.resource.table}" with the same RLS pattern (user_id ownership, 4 policies: select/insert/update/delete).
 - CRITICAL: the ONLY valid values for ThemedText's "type" prop are exactly: default, title, small, smallBold, subtitle, link, linkPrimary, code. This is NOT the stock Expo template's ThemedText (which has different type names like "defaultSemiBold") - it is a custom component local to this project. Using any type value other than the ones listed above will fail TypeScript compilation. When in doubt, omit the "type" prop entirely rather than guessing one.
-- Use the exact same import alias style ("@/lib/...", "@/components/...", "@/contexts/auth-context", "@/constants/theme").
+- Use the exact same import alias style ("@/types/...", "@/services/...", "@/lib/...", "@/components/...", "@/contexts/auth-context", "@/constants/theme").
 
 Respond with EXACTLY this format, nothing else (no markdown fences, no commentary):
 
-===FILE: src/lib/${spec.resource.libFileName}.ts===
+===FILE: src/types/${spec.resource.libFileName}.ts===
+<full file content>
+===FILE: src/services/${spec.resource.libFileName}.ts===
 <full file content>
 ===FILE: src/app/index.tsx===
 <full file content>
@@ -145,14 +156,15 @@ async function main() {
   }
 
   const spec = JSON.parse(fs.readFileSync(path.join(__dirname, 'specs', `${specName}.json`), 'utf8'));
-  const referenceLib = fs.readFileSync(path.join(SCAFFOLD_DIR, 'src/lib/todos.ts'), 'utf8');
+  const referenceTypes = fs.readFileSync(path.join(SCAFFOLD_DIR, 'src/types/todos.ts'), 'utf8');
+  const referenceServices = fs.readFileSync(path.join(SCAFFOLD_DIR, 'src/services/todos.ts'), 'utf8');
   const referenceScreen = fs.readFileSync(path.join(SCAFFOLD_DIR, 'src/app/index.tsx'), 'utf8');
   const referenceSql = fs.readFileSync(path.join(SCAFFOLD_DIR, 'supabase/schema.sql'), 'utf8');
 
   console.log(`[1/5] Calling Gemini to generate "${spec.appName}"...`);
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
-  const prompt = buildPrompt(spec, referenceLib, referenceScreen, referenceSql);
+  const prompt = buildPrompt(spec, referenceTypes, referenceServices, referenceScreen, referenceSql);
 
   let result;
   const maxAttempts = 5;
@@ -171,7 +183,12 @@ async function main() {
   const text = result.response.text();
 
   const files = parseResponse(text);
-  const expectedKeys = [`src/lib/${spec.resource.libFileName}.ts`, 'src/app/index.tsx', 'supabase/schema.sql'];
+  const expectedKeys = [
+    `src/types/${spec.resource.libFileName}.ts`,
+    `src/services/${spec.resource.libFileName}.ts`,
+    'src/app/index.tsx',
+    'supabase/schema.sql',
+  ];
   for (const key of expectedKeys) {
     if (!files[key]) {
       console.error('Model response missing expected file:', key);
@@ -182,7 +199,7 @@ async function main() {
   }
 
   const prefixedTable = prefixedTableName(spec);
-  for (const key of ['supabase/schema.sql', 'src/lib/' + spec.resource.libFileName + '.ts']) {
+  for (const key of ['supabase/schema.sql', 'src/services/' + spec.resource.libFileName + '.ts']) {
     files[key] = applyTablePrefix(files[key], spec.resource.table, prefixedTable);
   }
 

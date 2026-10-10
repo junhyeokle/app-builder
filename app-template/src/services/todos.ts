@@ -1,13 +1,5 @@
 import { supabase } from '@/lib/supabase';
-
-export type Todo = {
-  id: string;
-  user_id: string;
-  title: string;
-  is_done: boolean;
-  due_date: string | null;
-  created_at: string;
-};
+import type { Todo } from '@/types/todos';
 
 export async function listTodos(): Promise<Todo[]> {
   const { data, error } = await supabase

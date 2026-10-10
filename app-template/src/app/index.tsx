@@ -8,7 +8,8 @@ import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useTheme } from '@/hooks/use-theme';
-import { createTodo, deleteTodo, listTodos, toggleTodo, type Todo } from '@/lib/todos';
+import { createTodo, deleteTodo, listTodos, toggleTodo } from '@/services/todos';
+import type { Todo } from '@/types/todos';
 
 export default function TodoListScreen() {
   const theme = useTheme();
