@@ -5,15 +5,17 @@ function randomSlug() {
   return 'proj-' + Math.random().toString(36).slice(2, 8);
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
 
+  const { name } = await request.json().catch(() => ({ name: undefined }));
+
   const slug = randomSlug();
   const { data, error } = await supabase
     .from('platform_projects')
-    .insert({ user_id: userData.user.id, slug, status: 'chatting' })
+    .insert({ user_id: userData.user.id, slug, status: 'chatting', app_name: name || null })
     .select()
     .single();
 

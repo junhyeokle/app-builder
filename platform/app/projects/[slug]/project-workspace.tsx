@@ -4,15 +4,16 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
+type ChatMessage = { role: 'user' | 'ai'; text: string };
+
 type Project = {
   slug: string;
   app_name: string | null;
   status: string;
   apk_url: string | null;
   spec: unknown;
+  messages: ChatMessage[];
 };
-
-type ChatMessage = { role: 'user' | 'ai'; text: string };
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   chatting: { label: '요구사항 확인 중', className: 'bg-gray-100 text-gray-600' },
@@ -31,7 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export function ProjectWorkspace({ initialProject }: { initialProject: Project }) {
   const [project, setProject] = useState(initialProject);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(initialProject.messages ?? []);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [buildingApk, setBuildingApk] = useState(false);
@@ -83,7 +84,7 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
         ...m,
         { role: 'ai', text: result.note || (result.generateOk ? '앱이 생성됐습니다.' : '생성 중 오류가 발생했습니다.') },
       ]);
-      setProject((p) => ({ ...p, app_name: result.spec.appName, status: result.generateOk ? 'ready' : 'failed' }));
+      setProject((p) => ({ ...p, app_name: result.appName ?? result.spec.appName, status: result.generateOk ? 'ready' : 'failed' }));
     } else if (result.type === 'unsupported') {
       setMessages((m) => [...m, { role: 'ai', text: result.message }]);
     } else if (result.error) {

@@ -47,24 +47,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   const result = JSON.parse(resultLine.slice('RESULT_JSON:'.length));
 
+  // Persist the transcript so it survives a page refresh (see PROBLEM.md,
+  // batch 3). Conversations here are short and bounded by analyze.js's own
+  // rules (at most 3 clarifying questions), so a jsonb column rewritten each
+  // turn is fine - see supabase/schema.sql's note on why this would need to
+  // become a separate table if V0.2 adds long-running modification chats.
+  const existingMessages = (project.messages ?? []) as { role: 'user' | 'ai'; text: string }[];
+
   if (result.type === 'question') {
-    await supabase.from('platform_projects').update({ status: 'chatting' }).eq('slug', slug);
+    const messages = [...existingMessages, { role: 'user' as const, text: message }, { role: 'ai' as const, text: result.question }];
+    await supabase.from('platform_projects').update({ status: 'chatting', messages }).eq('slug', slug);
     return NextResponse.json({ type: 'question', question: result.question });
   }
 
   // type === 'spec'
+  const aiText = result.note || (result.generateOk ? '앱이 생성됐습니다.' : '생성 중 오류가 발생했습니다.');
+  const messages = [...existingMessages, { role: 'user' as const, text: message }, { role: 'ai' as const, text: aiText }];
+  // Don't clobber a name the user picked at project creation (see PROBLEM.md
+  // #2 "새 프로젝트" naming) - only fall back to the AI's name if none was set.
+  const appName = project.app_name || result.spec.appName;
   await supabase
     .from('platform_projects')
     .update({
-      app_name: result.spec.appName,
+      app_name: appName,
       spec: result.spec,
       status: result.generateOk ? 'ready' : 'failed',
+      messages,
     })
     .eq('slug', slug);
 
   return NextResponse.json({
     type: 'spec',
     spec: result.spec,
+    appName,
     note: result.note,
     generateOk: result.generateOk,
   });
