@@ -11,9 +11,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// All generated apps currently share one Supabase project (see
+// MILESTONES.md M4/M5). Without a per-project storage key, every app's auth
+// session would be stored under the same key - and since the platform
+// serves every preview from the same browser origin (localhost:3000), that
+// meant logging into one generated app silently logged you into every
+// other one too (see PROBLEM.md #3, batch 6). EXPO_PUBLIC_PROJECT_SLUG is
+// injected per-project by generate.js precisely so each app's session is
+// isolated from every other app's, not just from other users.
+const projectSlug = process.env.EXPO_PUBLIC_PROJECT_SLUG || 'app-template';
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
+    storageKey: `sb-${projectSlug}-auth-token`,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -35,6 +36,7 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
   const [busy, setBusy] = useState(false);
   const [buildingApk, setBuildingApk] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -61,6 +63,7 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
     if (!text || busy) return;
     setMessages((m) => [...m, { role: 'user', text }]);
     setInput('');
+    if (inputRef.current) inputRef.current.style.height = 'auto';
     setBusy(true);
     setProject((p) => ({ ...p, status: 'generating' }));
 
@@ -104,7 +107,12 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
   return (
     <div className="mx-auto flex h-screen max-w-5xl gap-4 p-4">
       <div className="flex w-1/2 flex-col rounded border">
-        <div className="border-b p-3 font-medium">{project.app_name || project.slug}</div>
+        <div className="flex items-center gap-2 border-b p-3 font-medium">
+          <Link href="/projects" className="text-sm text-gray-400 hover:text-gray-600">
+            ← 내 프로젝트
+          </Link>
+          <span>{project.app_name || project.slug}</span>
+        </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {messages.map((m, i) => (
             <div key={i} className={m.role === 'user' ? 'text-right' : 'text-left'}>
@@ -133,11 +141,25 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
           }}
           className="flex gap-2 border-t p-3"
         >
-          <input
+          <textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="만들고 싶은 앱을 설명해주세요..."
-            className="flex-1 rounded border px-3 py-2 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="만들고 싶은 앱을 설명해주세요... (Shift+Enter로 줄바꿈)"
+            rows={1}
+            className="max-h-40 flex-1 resize-none overflow-y-auto rounded border px-3 py-2 text-sm"
+            style={{ height: 'auto' }}
+            onInput={(e) => {
+              const el = e.currentTarget;
+              el.style.height = 'auto';
+              el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+            }}
             disabled={busy || isFinished}
           />
           <button

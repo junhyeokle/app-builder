@@ -73,7 +73,7 @@ async function buildApk(slug) {
 
   console.log('[3/5] Pushing Supabase config to EAS (preview environment)...');
   const envVars = readEnvFile(path.join(projectDir, '.env'));
-  for (const name of ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY']) {
+  for (const name of ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY', 'EXPO_PUBLIC_PROJECT_SLUG']) {
     run(
       `npx eas-cli env:create preview --name ${name} --value "${envVars[name]}" --visibility plaintext --force --non-interactive`,
       projectDir

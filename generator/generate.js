@@ -27,7 +27,7 @@ const SLOT_FILES_TO_SKIP = new Set([
 
 const SKIP_DIRS = new Set(['node_modules', '.expo', 'dist', '.git']);
 
-function copyScaffold(destDir) {
+function copyScaffold(destDir, slug) {
   fs.mkdirSync(destDir, { recursive: true });
 
   function walk(relDir) {
@@ -54,7 +54,14 @@ function copyScaffold(destDir) {
   fs.cpSync(path.join(SCAFFOLD_DIR, 'node_modules'), path.join(destDir, 'node_modules'), {
     recursive: true,
   });
-  fs.copyFileSync(path.join(SCAFFOLD_DIR, '.env'), path.join(destDir, '.env'));
+  // Give this project its own EXPO_PUBLIC_PROJECT_SLUG so its Supabase auth
+  // session is stored under a key unique to this app (see app-template's
+  // lib/supabase.ts and PROBLEM.md #3 batch 6 - without this, every
+  // generated app shared one login session since they're all served from
+  // the same browser origin).
+  const scaffoldEnv = fs.readFileSync(path.join(SCAFFOLD_DIR, '.env'), 'utf8');
+  const envWithoutSlug = scaffoldEnv.replace(/^EXPO_PUBLIC_PROJECT_SLUG=.*$/m, '').trimEnd();
+  fs.writeFileSync(path.join(destDir, '.env'), `${envWithoutSlug}\nEXPO_PUBLIC_PROJECT_SLUG=${slug}\n`);
 }
 
 function buildPrompt(spec, referenceLib, referenceScreen, referenceSql) {
@@ -182,7 +189,7 @@ async function main() {
   const destDir = path.join(OUT_BASE, spec.slug);
   console.log(`[2/5] Assembling project at ${path.relative(ROOT, destDir)}...`);
   fs.rmSync(destDir, { recursive: true, force: true });
-  copyScaffold(destDir);
+  copyScaffold(destDir, spec.slug);
 
   for (const [relPath, content] of Object.entries(files)) {
     const destPath = path.join(destDir, relPath);
