@@ -6,14 +6,48 @@
     "tsTypeName": "ShoppingItem",
     "libFileName": "shopping-items",
     "fields": [
-      { "name": "name", "type": "text", "tsType": "string", "required": true },
-      { "name": "quantity", "type": "integer", "tsType": "number", "required": true, "default": 1 },
-      { "name": "is_purchased", "type": "boolean", "tsType": "boolean", "required": true, "default": false },
-      { "name": "category", "type": "text", "tsType": "string | null", "required": false }
+      {
+        "name": "name",
+        "type": "text",
+        "tsType": "string",
+        "required": true
+      },
+      {
+        "name": "quantity",
+        "type": "integer",
+        "tsType": "number",
+        "required": true,
+        "default": 1
+      },
+      {
+        "name": "is_purchased",
+        "type": "boolean",
+        "tsType": "boolean",
+        "required": true,
+        "default": false
+      },
+      {
+        "name": "category",
+        "type": "text",
+        "tsType": "string | null",
+        "required": false
+      },
+      {
+        "name": "note",
+        "type": "text",
+        "tsType": "string | null",
+        "required": false
+      }
     ],
     "orderBy": [
-      { "field": "is_purchased", "ascending": true },
-      { "field": "created_at", "ascending": false }
+      {
+        "field": "is_purchased",
+        "ascending": true
+      },
+      {
+        "field": "created_at",
+        "ascending": false
+      }
     ]
   },
   "screen": {

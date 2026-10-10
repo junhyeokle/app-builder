@@ -1,0 +1,52 @@
+{
+  "slug": "proj-4w01ru",
+  "screen": {
+    "title": "내 독서 기록",
+    "description": "사용자의 독서 목록을 관리하는 화면입니다. 책 제목, 별점, 읽은 날짜를 기록하고 다 읽었는지 여부를 토글하거나 항목을 삭제할 수 있습니다."
+  },
+  "appName": "독서기록장",
+  "resource": {
+    "table": "book_records",
+    "fields": [
+      {
+        "name": "title",
+        "type": "text",
+        "tsType": "string",
+        "required": true
+      },
+      {
+        "name": "rating",
+        "type": "integer",
+        "tsType": "number",
+        "required": false
+      },
+      {
+        "name": "read_date",
+        "type": "date",
+        "tsType": "string | null",
+        "required": false
+      },
+      {
+        "name": "is_finished",
+        "type": "boolean",
+        "tsType": "boolean",
+        "default": false,
+        "required": true
+      },
+      {
+        "name": "author",
+        "type": "text",
+        "tsType": "string",
+        "required": false
+      }
+    ],
+    "orderBy": [
+      {
+        "field": "read_date",
+        "ascending": false
+      }
+    ],
+    "tsTypeName": "BookRecord",
+    "libFileName": "book-records"
+  }
+}

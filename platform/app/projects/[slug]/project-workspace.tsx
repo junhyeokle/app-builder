@@ -13,6 +13,7 @@ type Project = {
   apk_url: string | null;
   spec: unknown;
   messages: ChatMessage[];
+  preview_version: number;
 };
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
@@ -85,6 +86,13 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
         { role: 'ai', text: result.note || (result.generateOk ? '앱이 생성됐습니다.' : '생성 중 오류가 발생했습니다.') },
       ]);
       setProject((p) => ({ ...p, app_name: result.appName ?? result.spec.appName, status: result.generateOk ? 'ready' : 'failed' }));
+    } else if (result.type === 'modified') {
+      // V0.2: successful modification - bump preview_version so the iframe's
+      // cache-busting query param changes and it reloads the rebuilt export.
+      setMessages((m) => [...m, { role: 'ai', text: result.note }]);
+      setProject((p) => ({ ...p, preview_version: result.previewVersion }));
+    } else if (result.type === 'declined' || result.type === 'rolled_back') {
+      setMessages((m) => [...m, { role: 'ai', text: result.message }]);
     } else if (result.type === 'unsupported') {
       setMessages((m) => [...m, { role: 'ai', text: result.message }]);
     } else if (result.error) {
@@ -99,11 +107,11 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
   }
 
   const isReady = project.status === 'ready' || project.status === 'ready_with_apk';
-  // V0.1 has no post-generation modification (see MILESTONES.md, V0.2 item).
-  // Once generation has finished (successfully or not), lock the chat input
-  // instead of letting the user keep typing into a conversation that no
-  // longer exists server-side.
-  const isFinished = ['ready', 'failed', 'building_apk', 'ready_with_apk', 'apk_failed'].includes(project.status);
+  // V0.2: a ready project can be modified via chat (generator/modify.js),
+  // so it's no longer locked. Only genuinely unmodifiable states are: no
+  // working app to modify (failed), or a build in progress (building_apk/
+  // apk_failed - avoid racing a concurrent APK build with a code change).
+  const isBlocked = ['failed', 'building_apk', 'apk_failed'].includes(project.status);
 
   return (
     <div className="mx-auto flex h-screen max-w-5xl gap-4 p-4">
@@ -130,9 +138,16 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
           {busy && <div className="text-sm text-gray-400">생성 중...</div>}
           <div ref={bottomRef} />
         </div>
-        {isFinished && (
+        {isBlocked && (
           <div className="border-t bg-amber-50 p-3 text-sm text-amber-800">
-            이 프로젝트는 생성이 끝났습니다. 지금 버전에서는 수정 기능이 없어요 — 바꾸고 싶으면 새 프로젝트로 다시 설명해주세요.
+            {project.status === 'failed'
+              ? '생성에 실패해서 수정할 대상이 없습니다. 새 프로젝트로 다시 설명해주세요.'
+              : 'APK 빌드가 진행 중이라 지금은 수정할 수 없습니다. 끝나면 다시 시도해주세요.'}
+          </div>
+        )}
+        {isReady && !isBlocked && (
+          <div className="border-t bg-blue-50 p-3 text-sm text-blue-800">
+            앱이 만들어졌습니다. 필드 추가나 화면/동작 변경을 요청해보세요 (예: &quot;카테고리 필드 추가해줘&quot;).
           </div>
         )}
         <form
@@ -152,7 +167,11 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
                 sendMessage();
               }
             }}
-            placeholder="만들고 싶은 앱을 설명해주세요... (Shift+Enter로 줄바꿈)"
+            placeholder={
+              isReady
+                ? '수정하고 싶은 부분을 설명해주세요... (Shift+Enter로 줄바꿈)'
+                : '만들고 싶은 앱을 설명해주세요... (Shift+Enter로 줄바꿈)'
+            }
             rows={1}
             className="max-h-40 flex-1 resize-none overflow-y-auto rounded border px-3 py-2 text-sm"
             style={{ height: 'auto' }}
@@ -161,11 +180,11 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
               el.style.height = 'auto';
               el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
             }}
-            disabled={busy || isFinished}
+            disabled={busy || isBlocked}
           />
           <button
             type="submit"
-            disabled={busy || isFinished}
+            disabled={busy || isBlocked}
             className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             전송
@@ -201,7 +220,10 @@ export function ProjectWorkspace({ initialProject }: { initialProject: Project }
 
         <div className="flex-1">
           {isReady ? (
-            <iframe src={`/preview/${project.slug}`} className="h-full w-full border-0" />
+            <iframe
+              src={`/preview/${project.slug}?v=${project.preview_version}`}
+              className="h-full w-full border-0"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-gray-400">
               {project.status === 'generating'

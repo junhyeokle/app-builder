@@ -16,6 +16,10 @@ create table if not exists public.platform_projects (
   -- modification conversation, revisit this as a separate messages table
   -- instead of a jsonb column rewritten on every turn.
   messages jsonb not null default '[]'::jsonb,
+  -- Bumped on every successful modification (V0.2) so the preview iframe's
+  -- cache-busting query param changes and it actually reloads the rebuilt
+  -- static export instead of showing a stale cached version.
+  preview_version integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

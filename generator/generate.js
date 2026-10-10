@@ -251,6 +251,17 @@ async function main() {
     process.exit(1);
   }
 
+  // Baseline git commit: this is what modify.js's snapshot/rollback (V0.2)
+  // builds on. Must happen on every successful generation, not just when
+  // the user later asks to build an APK - see ROADMAP.md's modification
+  // architecture notes.
+  console.log('[baseline] Creating git snapshot of the initial generation...');
+  execSync('git init -q', { cwd: destDir });
+  execSync('git add -A', { cwd: destDir });
+  execSync('git -c user.email=bot@appbuilder.local -c user.name="App Builder Bot" commit -q -m "Initial generation"', {
+    cwd: destDir,
+  });
+
   console.log(`\nSUCCESS. Generated project at: ${destDir}`);
   console.log(`Schema already applied to Supabase as table "${prefixedTable}" — no manual SQL step needed.`);
   console.log(`Preview: cd ${path.relative(ROOT, destDir)} && npx expo start --web`);
