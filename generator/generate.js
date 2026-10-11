@@ -122,9 +122,20 @@ function prefixedTableName(spec) {
   return `${spec.slug.replace(/-/g, '_')}__${spec.resource.table}`;
 }
 
-function applyTablePrefix(content, originalTable, prefixedTable) {
+// SQL has no import paths, so a blanket word-boundary replace of the table
+// name is safe there. The TS services file is riskier: if resource.table
+// happens to equal resource.libFileName (e.g. both "workouts"), a blanket
+// replace also corrupts import paths like '@/types/workouts' into
+// '@/types/<slug>__workouts' - a real bug this caught. So the TS variant
+// only rewrites literal supabase .from('<table>') call sites.
+function applyTablePrefixToSql(content, originalTable, prefixedTable) {
   const pattern = new RegExp(`\\b${originalTable}\\b`, 'g');
   return content.replace(pattern, prefixedTable);
+}
+
+function applyTablePrefixToServices(content, originalTable, prefixedTable) {
+  const pattern = new RegExp(`(\\.from\\(\\s*['"\`])${originalTable}(['"\`]\\s*\\))`, 'g');
+  return content.replace(pattern, `$1${prefixedTable}$2`);
 }
 
 async function applySchema(sql) {
@@ -199,9 +210,9 @@ async function main() {
   }
 
   const prefixedTable = prefixedTableName(spec);
-  for (const key of ['supabase/schema.sql', 'src/services/' + spec.resource.libFileName + '.ts']) {
-    files[key] = applyTablePrefix(files[key], spec.resource.table, prefixedTable);
-  }
+  files['supabase/schema.sql'] = applyTablePrefixToSql(files['supabase/schema.sql'], spec.resource.table, prefixedTable);
+  const servicesKey = 'src/services/' + spec.resource.libFileName + '.ts';
+  files[servicesKey] = applyTablePrefixToServices(files[servicesKey], spec.resource.table, prefixedTable);
 
   const destDir = path.join(OUT_BASE, spec.slug);
   console.log(`[2/5] Assembling project at ${path.relative(ROOT, destDir)}...`);
